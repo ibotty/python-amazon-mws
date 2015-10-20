@@ -1,9 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+#pylint: disable=missing-docstring,line-too-long,invalid-name
+#pylint: disable=too-few-public-methods,too-many-arguments,no-self-use
 #
 # Basic interface to Amazon MWS
 # Based on http://code.google.com/p/amazon-mws-python
 #
+
+# TODO: what to do with data types: Subscription, Destination
 
 import urllib
 import hashlib
@@ -30,6 +34,7 @@ __all__ = [
     'Products',
     'Recommendations',
     'Sellers',
+    'Subscriptions',
 ]
 
 # See https://images-na.ssl-images-amazon.com/images/G/01/mwsportal/doc/en_US/bde/MWSDeveloperGuide._V357736853_.pdf page 8
@@ -46,7 +51,7 @@ MARKETPLACES = {
     "UK" : "https://mws-eu.amazonservices.com", #A1F83G8C2ARO7P
     "JP" : "https://mws.amazonservices.jp", #A1VC38T7YXB528
     "CN" : "https://mws.amazonservices.com.cn", #AAHKV2X7AFYLW
-    "MX" : "https://mws.amazonservices.com.mx", #A1AM78C64UM0Y8    
+    "MX" : "https://mws.amazonservices.com.mx", #A1AM78C64UM0Y8
 }
 
 
@@ -211,6 +216,7 @@ class MWS(object):
             raise error
 
         # Store the response object in the parsed_response for quick access
+        #pylint: disable=attribute-defined-outside-init
         parsed_response.response = response
         return parsed_response
 
@@ -276,7 +282,7 @@ class Feeds(MWS):
                                  extra_headers={'Content-MD5': md, 'Content-Type': content_type})
 
     def get_feed_submission_list(self, feedids=None, max_count=None, feedtypes=None,
-                                    processingstatuses=None, fromdate=None, todate=None):
+                                 processingstatuses=None, fromdate=None, todate=None):
         """
         Returns a list of all feed submissions submitted in the previous 90 days.
         That match the query parameters.
@@ -414,7 +420,7 @@ class Orders(MWS):
                     BuyerEmail=buyer_email,
                     SellerOrderId=seller_orderid,
                     MaxResultsPerPage=max_results,
-                    )
+                   )
         data.update(self.enumerate_param('OrderStatus.Status.', orderstatus))
         data.update(self.enumerate_param('MarketplaceId.Id.', marketplaceids))
         data.update(self.enumerate_param('FulfillmentChannel.Channel.', fulfillment_channels))
@@ -472,6 +478,7 @@ class Products(MWS):
             The identifier type is case sensitive.
             Added in Fourth Release, API version 2011-10-01
         """
+        #pylint: disable=redefined-builtin
         data = dict(Action='GetMatchingProductForId',
                     MarketplaceId=marketplaceid,
                     IdType=type)
@@ -586,7 +593,7 @@ class Inventory(MWS):
         data = dict(Action='ListInventorySupply',
                     QueryStartDateTime=datetime,
                     ResponseGroup=response_group,
-                    )
+                   )
         data.update(self.enumerate_param('SellerSkus.member.', skus))
         return self.make_request(data, "POST")
 
@@ -636,4 +643,94 @@ class Recommendations(MWS):
 
         data = dict(Action="ListRecommendationsByNextToken",
                     NextToken=token)
+        return self.make_request(data, "POST")
+
+class Subscriptions(MWS):
+
+    """ Amazon MWS Recommendations API """
+
+    URI = '/Subscriptions/2013-07-01'
+    VERSION = '2013-07-01'
+    NS = "{https://mws.amazonservices.com/Subscriptions/2013-07-01}"
+
+    def register_destination(self, marketplaceid, destination):
+        """
+        Register a SQS destination.
+        """
+        data = dict(Action='RegisterDestination',
+                    MarketplaceId=marketplaceid,
+                    Destination=destination)
+        return self.make_request(data, "POST")
+
+    def deregister_destination(self, marketplaceid, destination):
+        """
+        Deregister a SQS destination.
+        """
+        data = dict(Action="DeregisterDestination",
+                    MarketplaceId=marketplaceid,
+                    Destination=destination)
+        return self.make_request(data, "POST")
+
+    def list_registered_destinations(self, marketplaceid):
+        """
+        Get registered SQS destinations.
+        """
+
+        data = dict(Action="ListRegisteredDestinations",
+                    MarketplaceId=marketplaceid)
+        return self.make_request(data, "POST")
+
+    def send_test_notification_to_destination(self, marketplaceid, destination):
+        """
+        Send a test notification to SQS destination.
+        """
+        data = dict(Action="SendTestNotificationToDestination",
+                    MarketplaceId=marketplaceid,
+                    Destination=destination)
+        return self.make_request(data, "POST")
+
+    def create_subscription(self, marketplaceid, subscription):
+        """
+        Create a subscription.
+        """
+        data = dict(Action="CreateSubscription",
+                    MarketplaceId=marketplaceid,
+                    Subscription=subscription)
+        return self.make_request(data, "POST")
+
+    def get_subscription(self, marketplaceid, notification_type, destination):
+        """
+        Get subscriptions.
+        """
+        data = dict(Action="GetSubscription",
+                    MarketplaceId=marketplaceid,
+                    NotificationType=notification_type,
+                    Destination=destination)
+        return self.make_request(data, "POST")
+
+    def delete_subscription(self, marketplaceid, notification_type, destination):
+        """
+        Delete a subscription.
+        """
+        data = dict(Action="DeleteSubscription",
+                    MarketplaceId=marketplaceid,
+                    NotificationType=notification_type,
+                    Destination=destination)
+        return self.make_request(data, "POST")
+
+    def update_subscription(self, marketplaceid, subscription):
+        """
+        Update a subscription.
+        """
+        data = dict(Action="UpdateSubscription",
+                    MarketplaceId=marketplaceid,
+                    Subscription=subscription)
+        return self.make_request(data, "POST")
+
+    def list_subscriptions(self, marketplaceid):
+        """
+        List subscriptions.
+        """
+        data = dict(Action="ListSubscriptions",
+                    MarketplaceId=marketplaceid)
         return self.make_request(data, "POST")
